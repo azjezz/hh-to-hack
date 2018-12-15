@@ -1,0 +1,57 @@
+ #!/usr/bin/env php
+<?php
+
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
+
+require __DIR__.'/../vendor/autoload.php';
+
+$app = new Silly\Application('hh-to-hack', '0.1');
+
+function rename_file(SplFileInfo $file, bool $rollback): string
+{
+    $filename = $file->getRealPath();
+    $fileinfo = pathinfo($filename);
+    return $fileinfo['dirname']. '/' . $fileinfo['filename'] . ($rollback ? '.hh' : '.hack');
+}
+
+$app->command(
+    'migrate [directory] [--rollback] [--keep-previous]', 
+    function (string $directory, bool $rollback, bool $keepPrevious, OutputInterface $output): void
+    {
+        if ($directory[0] !== '/' && $directory[0] !== '~') {
+            $directory = getcwd() . '/' . $directory;
+        }
+
+        $finder = new Finder();
+        $files = $finder
+            ->ignoreUnreadableDirs()
+            ->ignoreVCS(true)
+            ->in($directory)
+            ->name($rollback ? ['*.hack'] : ['*.hh', '*.php'])
+            ->files()
+            ->getIterator();
+
+        foreach ($files as $file) {
+            $content = $file->getContents();
+
+            $filename = rename_file($file, $rollback);
+
+            $handle = fopen($filename, 'wb+');
+            fwrite($handle, $content);
+            fclose($handle);
+
+            $output->writeln('<comment>Migrated ' . $file->getRealPath() . '</comment>');
+
+            if (!$keepPrevious) {
+                unlink($file->getRealPath());
+            }
+        }
+
+        $output->writeln('<info>Done</info>');
+        $output->writeln("");
+    }
+)->descriptions('Migrate \'.hh\' and \'.php\' file extensions to \'.hack\' .');
+
+$app->run();

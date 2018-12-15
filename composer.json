@@ -1,0 +1,19 @@
+{
+    "name": "azjezz/hh-to-hack",
+    "type": "tool",
+    "description": "a really small tool to migrate from .hh and .php to .hack files extension in hack lang.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "azjezz",
+            "email": "azjezz@protonmail.com"
+        }
+    ],
+    "require": {
+        "symfony/finder": "^4.2",
+        "mnapoli/silly": "^1.7"
+    },
+    "bin": [
+        "bin/hh-to-hack"
+    ]
+}
