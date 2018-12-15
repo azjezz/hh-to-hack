@@ -5,7 +5,25 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
-require __DIR__.'/../vendor/autoload.php';
+$autoloadFiles = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+];
+
+$autoloaderFound = false;
+
+foreach ($autoloadFiles as $autoloadFile) {
+    if (! file_exists($autoloadFile)) {
+        continue;
+    }
+    require_once $autoloadFile;
+    $autoloaderFound = true;
+}
+
+if (! $autoloaderFound) {
+    echo 'vendor/autoload.php could not be found. Did you run `composer install`?', PHP_EOL;
+    exit(1);
+}
 
 $app = new Silly\Application('hh-to-hack', '0.1');
 
