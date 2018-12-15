@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "symfony/finder": "^4.2",
+        "symfony/finder": "^4.0 || ^4.1 || ^4.2",
         "mnapoli/silly": "^1.7"
     },
     "bin": [
