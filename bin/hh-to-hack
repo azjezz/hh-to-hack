@@ -18,9 +18,11 @@ function rename_file(SplFileInfo $file, bool $rollback): string
 
 $app->command(
     'migrate [directory] [--rollback] [--keep-previous]', 
-    function (string $directory, bool $rollback, bool $keepPrevious, OutputInterface $output): void
+    function (?string $directory = null, bool $rollback, bool $keepPrevious, OutputInterface $output): void
     {
-        if ($directory[0] !== '/' && $directory[0] !== '~') {
+        if ($directory === null) {
+            $directory = getcwd();
+	} elseif ($directory[0] !== '/' && $directory[0] !== '~') {
             $directory = getcwd() . '/' . $directory;
         }
 
