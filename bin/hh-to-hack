@@ -49,12 +49,12 @@ $app->command(
 	$ignored = 0;
 	foreach ($files as $file) {
 	    $content = $file->getContents();
-	    if (preg_replace('/\s+/', '', strtok($content, "\n")) === '<?hh//strict') {
+	    if (preg_replace('/\s+/', '', strtok($content, PHP_EOL)) === '<?hh//strict') {
 	        $fileinfo = pathinfo($file->getRealPath());
                 $filename = $fileinfo['dirname']. '/' . $fileinfo['filename'] . '.hack';
                 $handle = fopen($filename, 'wb+');
                 flock($handle, LOCK_EX);
-                $lines = explode("\n", $content);
+                $lines = explode(PHP_EOL, $content);
                 foreach($lines as $i => $line) {
                     if (preg_replace('/\s+/', '', $line) === '<?hh//strict') {
                         unset($lines[$i]);
