@@ -1,5 +1,5 @@
 #!/usr/bin/env php
-<?php
+<?php declare(strict_types=1);
 
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
@@ -25,22 +25,14 @@ if (! $autoloaderFound) {
     exit(1);
 }
 
-$app = new Silly\Application('hh-to-hack', '0.1');
-
-function rename_file(SplFileInfo $file, bool $rollback): string
-{
-    $filename = $file->getRealPath();
-    $fileinfo = pathinfo($filename);
-    return $fileinfo['dirname']. '/' . $fileinfo['filename'] . ($rollback ? '.hh' : '.hack');
-}
+$app = new Silly\Application('hh-to-hack', '0.2.0');
 
 $app->command(
-    'migrate [directory] [--rollback] [--keep-previous]', 
-    function (?string $directory = null, bool $rollback, bool $keepPrevious, OutputInterface $output): void
-    {
+    'migrate [directory] [--keep-previous]', 
+    function (?string $directory = null, bool $keepPrevious, OutputInterface $output): void {
         if ($directory === null) {
             $directory = getcwd();
-	} elseif ($directory[0] !== '/' && $directory[0] !== '~') {
+	} elseif ($directory[0] !== '/') {
             $directory = getcwd() . '/' . $directory;
         }
 
@@ -49,29 +41,52 @@ $app->command(
             ->ignoreUnreadableDirs()
             ->ignoreVCS(true)
             ->in($directory)
-            ->name($rollback ? ['*.hack'] : ['*.hh', '*.php'])
+            ->name(['*.hh', '*.php'])
             ->files()
             ->getIterator();
 
-        foreach ($files as $file) {
-            $content = $file->getContents();
+	$migrated = 0;
+	$ignored = 0;
+	foreach ($files as $file) {
+	    $content = $file->getContents();
+	    if (preg_replace('/\s+/', '', strtok($content, "\n")) === '<?hh//strict') {
+	        $fileinfo = pathinfo($file->getRealPath());
+                $filename = $fileinfo['dirname']. '/' . $fileinfo['filename'] . '.hack';
+                $handle = fopen($filename, 'wb+');
+                flock($handle, LOCK_EX);
+                $lines = explode("\n", $content);
+                foreach($lines as $i => $line) {
+                    if (preg_replace('/\s+/', '', $line) === '<?hh//strict') {
+                        unset($lines[$i]);
+			if (preg_replace('/\s+/', '', $lines[$i+1]) === '') {
+			    unset($lines[$i+1]);
+			}
+                        continue;
+                    }
+                }
+                fwrite($handle, implode(PHP_EOL, $lines));
+                fclose($handle);
+                
+		$output->writeln(sprintf('<fg=green> → migrated "%s"</>', $file->getRealPath()));
 
-            $filename = rename_file($file, $rollback);
-
-            $handle = fopen($filename, 'wb+');
-            fwrite($handle, $content);
-            fclose($handle);
-
-            $output->writeln('<comment>Migrated ' . $file->getRealPath() . '</comment>');
-
-            if (!$keepPrevious) {
-                unlink($file->getRealPath());
+                if (!$keepPrevious) {
+                    unlink($file->getRealPath());
+                }
+	        $migrated++;
+	    } else {
+	        $output->writeln(sprintf('<fg=yellow> → ignored "%s" ( not strict )</>', $file->getRealPath()));
+	        $ignored++;
             }
         }
 
-        $output->writeln('<info>Done</info>');
-        $output->writeln("");
+        $output->writeln('');
+        $output->writeln(sprintf(
+            '<info> → finished - migrated %d files and ignored %d non-strict files</info>',
+            $migrated,
+            $ignored
+        ));
+        $output->writeln('');
     }
-)->descriptions('Migrate \'.hh\' and \'.php\' file extensions to \'.hack\' .');
+)->descriptions('Migrate strict \'.hh\' and \'.php\' files to \'.hack\' .');
 
 $app->run();
