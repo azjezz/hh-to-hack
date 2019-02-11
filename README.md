@@ -14,4 +14,4 @@ $ hh-to-hack migration path/to/project/src
 ```
 
 #### Options :
-  - `--keep-previous` : keep the old `.hh` ( or `.hack` in case you are using `--rollback` ) files after the migration
+  - `--keep-previous` : keep the old `.hh` and `.php`  files after the migration
