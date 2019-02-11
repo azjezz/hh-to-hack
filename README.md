@@ -14,5 +14,4 @@ $ hh-to-hack migration path/to/project/src
 ```
 
 #### Options :
-  - `--rollback` : switch back to using `.hh` files extension
   - `--keep-previous` : keep the old `.hh` ( or `.hack` in case you are using `--rollback` ) files after the migration
