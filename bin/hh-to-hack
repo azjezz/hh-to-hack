@@ -1,92 +1,96 @@
 #!/usr/bin/env php
-<?php declare(strict_types=1);
+<?php
+declare (strict_types = 1);
 
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
 $autoloadFiles = [
-    __DIR__ . '/../vendor/autoload.php',
-    __DIR__ . '/../../../autoload.php',
+  __DIR__ . '/../vendor/autoload.php',
+  __DIR__ . '/../../../autoload.php',
 ];
 
 $autoloaderFound = false;
 
 foreach ($autoloadFiles as $autoloadFile) {
-    if (! file_exists($autoloadFile)) {
-        continue;
-    }
-    require_once $autoloadFile;
-    $autoloaderFound = true;
+  if (!file_exists($autoloadFile)) {
+    continue;
+  }
+
+  require_once $autoloadFile;
+  $autoloaderFound = true;
 }
 
-if (! $autoloaderFound) {
-    echo 'vendor/autoload.php could not be found. Did you run `composer install`?', PHP_EOL;
-    exit(1);
+if (!$autoloaderFound) {
+  echo 'vendor/autoload.php could not be found. Did you run `composer install`?', PHP_EOL;
+  exit(1);
 }
 
 $app = new Silly\Application('hh-to-hack', '2.0.0');
 
 $app->command(
-    'migrate [directory] [--keep-previous]', 
-    function (?string $directory = null, bool $keepPrevious, OutputInterface $output): void {
-        if ($directory === null) {
-            $directory = getcwd();
-	} elseif ($directory[0] !== '/') {
-            $directory = getcwd() . '/' . $directory;
-        }
-
-        $finder = new Finder();
-        $files = $finder
-            ->ignoreUnreadableDirs()
-            ->ignoreVCS(true)
-            ->in($directory)
-            ->name(['*.hh', '*.php'])
-            ->files()
-            ->getIterator();
-
-	$migrated = 0;
-	$ignored = 0;
-	foreach ($files as $file) {
-	    $content = $file->getContents();
-	    if (preg_replace('/\s+/', '', strtok($content, PHP_EOL)) === '<?hh//strict') {
-	        $fileinfo = pathinfo($file->getRealPath());
-                $filename = $fileinfo['dirname']. '/' . $fileinfo['filename'] . '.hack';
-                $handle = fopen($filename, 'wb+');
-                flock($handle, LOCK_EX);
-                $lines = explode(PHP_EOL, $content);
-                foreach($lines as $i => $line) {
-                    if (preg_replace('/\s+/', '', $line) === '<?hh//strict') {
-                        unset($lines[$i]);
-			if (preg_replace('/\s+/', '', $lines[$i+1]) === '') {
-			    unset($lines[$i+1]);
-			}
-                        continue;
-                    }
-                }
-                fwrite($handle, implode(PHP_EOL, $lines));
-                fclose($handle);
-                
-		$output->writeln(sprintf('<fg=green> → migrated "%s"</>', $file->getRealPath()));
-
-                if (!$keepPrevious) {
-                    unlink($file->getRealPath());
-                }
-	        $migrated++;
-	    } else {
-	        $output->writeln(sprintf('<fg=yellow> → ignored "%s" ( not strict )</>', $file->getRealPath()));
-	        $ignored++;
-            }
-        }
-
-        $output->writeln('');
-        $output->writeln(sprintf(
-            '<info> → finished - migrated %d files and ignored %d non-strict files</info>',
-            $migrated,
-            $ignored
-        ));
-        $output->writeln('');
+  'migrate [directory] [--keep-previous]',
+  function (?string $directory = null, bool $keepPrevious, OutputInterface $output):void {
+    if ($directory === null) {
+      $directory = getcwd();
+    } elseif ($directory[0] !== '/') {
+      $directory = getcwd() . '/' . $directory;
     }
+
+    $finder = new Finder();
+    $files = $finder
+      ->ignoreUnreadableDirs()
+      ->ignoreVCS(true)
+      ->in($directory)
+      ->name(['*.hh', '*.php'])
+      ->files()
+      ->getIterator();
+    $migrated = 0;
+    $ignored = 0;
+    foreach ($files as $file) {
+      $content = $file->getContents();
+      if (preg_replace('/\s+/', '', strtok($content, PHP_EOL)) === '<?hh//strict') {
+        $fileinfo = pathinfo($file->getRealPath());
+        $filename = $fileinfo['dirname'] . '/' . $fileinfo['filename'] . '.hack';
+        $handle = fopen($filename, 'wb+');
+        flock($handle, LOCK_EX);
+        $lines = explode(PHP_EOL, $content);
+        foreach ($lines as $i => $line) {
+          if (preg_replace('/\s+/', '', $line) === '<?hh//strict') {
+            unset($lines[$i]);
+            if (preg_replace('/\s+/', '', $lines[$i + 1]) === '') {
+              unset($lines[$i + 1]);
+            }
+
+            continue;
+          }
+        }
+
+        fwrite($handle, implode(PHP_EOL, $lines));
+        fclose($handle);
+        $output->writeln(sprintf('<fg=green> → migrated "%s"</>', $file->getRealPath()));
+        if (!$keepPrevious) {
+          unlink($file->getRealPath());
+        }
+
+        $migrated++;
+      } else {
+        $output->writeln(sprintf('<fg=yellow> → ignored "%s" ( not strict )</>', $file->getRealPath()));
+        $ignored++;
+      }
+    }
+
+    $output->writeln('');
+    $output->writeln(
+      sprintf(
+        '<info> → finished - migrated %d files and ignored %d non-strict files</info>',
+        $migrated,
+        $ignored
+      )
+    );
+    $output->writeln('');
+  }
 )->descriptions('Migrate strict \'.hh\' and \'.php\' files to \'.hack\' .');
 
 $app->run();
